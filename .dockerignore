@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Git
+.git/
+.gitignore
+
+# Build & IDE
+dist/
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+
+# Docs
+README.md
+*.md
+
+# Testing
+coverage/
+**/*.test.ts
+**/*.spec.ts
+__tests__/
+
+# Misc
+.DS_Store
+*.log

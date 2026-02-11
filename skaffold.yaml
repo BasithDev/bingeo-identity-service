@@ -1,0 +1,32 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: bingeo-identity-cfg
+
+manifests:
+  rawYaml:
+    - k8s/*.yaml
+
+build:
+  local:
+    useDockerCLI: false
+    tryImportMissing: false
+    concurrency: 1
+    push: false
+  tagPolicy:
+    gitCommit: {}
+  artifacts:
+    - image: bingeo/identity-service
+      context: .
+      docker:
+        dockerfile: Dockerfile.dev
+        network: host
+        cacheFrom:
+          - bingeo/identity-service:latest
+      sync:
+        manual:
+          - src: "src/**/*.ts"
+            dest: .
+
+deploy:
+  kubectl: {}
