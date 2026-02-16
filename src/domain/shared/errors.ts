@@ -1,9 +1,3 @@
-/**
- * Domain Rules
- * Pure business rule validation functions
- * No side effects, no infrastructure dependencies
- */
-
 export class DomainError extends Error {
   constructor(
     message: string,
@@ -13,5 +7,3 @@ export class DomainError extends Error {
     this.name = 'DomainError';
   }
 }
-
-// Add your domain rules here

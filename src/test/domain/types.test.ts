@@ -1,10 +1,5 @@
-/**
- * Sample Domain Test
- * Demonstrates testing pure domain logic
- */
-
 import { describe, expect, it } from 'vitest';
-import { err, ok } from './types.js';
+import { err, ok } from '../../domain/shared/types.js';
 
 describe('Result type', () => {
   it('should create ok result', () => {

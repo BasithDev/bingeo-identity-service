@@ -3,10 +3,8 @@ import pino from 'pino';
 const isDev = process.env.NODE_ENV !== 'production';
 const lokiUrl = process.env.LOKI_URL || 'http://loki.bingeo-obs.svc.cluster.local:3100';
 
-// Define transports based on environment
 const transports: pino.TransportTargetOptions[] = [];
 
-// Pretty console in dev, JSON in production
 if (isDev) {
   transports.push({
     target: 'pino-pretty',
@@ -26,8 +24,7 @@ if (isDev) {
   });
 }
 
-// Always send to Loki (if URL is configured)
-if (lokiUrl && lokiUrl !== 'not configured') {
+if (!isDev && lokiUrl && lokiUrl !== 'not configured') {
   transports.push({
     target: 'pino-loki',
     options: {
@@ -53,7 +50,7 @@ export const logger = pino(
       version: '0.0.1',
     },
   },
-  transport
+  transport,
 );
 
 export default logger;

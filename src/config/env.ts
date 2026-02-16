@@ -27,8 +27,31 @@ function getEnvNumber(key: string, defaultValue?: number): number {
 }
 
 export const config = {
+  // App
   nodeEnv: getEnv('NODE_ENV', 'development'),
   port: getEnvNumber('PORT', 3000),
   isProduction: getEnv('NODE_ENV', 'development') === 'production',
   isDevelopment: getEnv('NODE_ENV', 'development') === 'development',
+
+  // JWT (HS256)
+  jwtSecret: getEnv('JWT_SECRET', 'dev-secret-change-in-production'),
+  jwtAccessExpiresIn: getEnv('JWT_ACCESS_EXPIRES_IN', '15m'),
+  jwtRefreshExpiresIn: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
+
+  // Database (PostgreSQL)
+  databaseUrl: getEnv('DATABASE_URL', 'postgresql://user:password@localhost:5432/bingeo_identity'),
+
+  // Redis
+  redisUrl: getEnv('REDIS_URL', 'redis://localhost:6379'),
+
+  // Google OAuth
+  googleClientId: getEnv('GOOGLE_CLIENT_ID', ''),
+  googleClientSecret: getEnv('GOOGLE_CLIENT_SECRET', ''),
+  googleCallbackUrl: getEnv('GOOGLE_CALLBACK_URL', 'http://localhost:3000/auth/google/callback'),
+
+  // Cookie
+  cookieDomain: getEnv('COOKIE_DOMAIN', 'localhost'),
+
+  // Client URL (for OAuth redirects)
+  clientUrl: getEnv('CLIENT_URL', 'http://localhost:5173'),
 } as const;

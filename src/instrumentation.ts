@@ -2,13 +2,16 @@
  * OpenTelemetry Instrumentation
  * MUST be imported before any other code
  */
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 
-const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://otel-collector.bingeo-obs.svc.cluster.local:4317';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+
+const otlpEndpoint =
+  process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
+  'http://otel-collector.bingeo-obs.svc.cluster.local:4317';
 const serviceName = process.env.OTEL_SERVICE_NAME || 'identity-service';
 
 console.log(`[OTel] Initializing for ${serviceName} -> ${otlpEndpoint}`);
