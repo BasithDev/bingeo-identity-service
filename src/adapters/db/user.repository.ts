@@ -1,44 +1,52 @@
+import { UserMapper } from '@domain/shared/mapper.js';
+import type { UserProfile } from '@domain/user/entities.js';
+import type { IUserRepository } from '@domain/user/ports.js';
 import { eq } from 'drizzle-orm';
-import { db } from './db.client.js';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type * as schema from './schema.js';
 import { users } from './schema.js';
 
-export type NewUser = typeof users.$inferInsert;
-export type DbUser = typeof users.$inferSelect;
+export class DrizzleUserRepository implements IUserRepository {
+  constructor(private readonly db: NodePgDatabase<typeof schema>) {}
 
-export const userRepository = {
-  async findById(id: string): Promise<DbUser | null> {
-    const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    return row ?? null;
-  },
+  async findById(id: string): Promise<UserProfile | null> {
+    const [row] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return row ? UserMapper.toProfile(row) : null;
+  }
 
-  async findByEmail(email: string): Promise<DbUser | null> {
-    const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    return row ?? null;
-  },
+  async findByEmail(email: string): Promise<UserProfile | null> {
+    const [row] = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    return row ? UserMapper.toProfile(row) : null;
+  }
 
-  async create(data: NewUser): Promise<DbUser> {
-    const [row] = await db.insert(users).values(data).returning();
-    return row;
-  },
+  async create(data: {
+    email: string;
+    name: string;
+    role: string;
+    subscription: string;
+  }): Promise<UserProfile> {
+    const [row] = await this.db.insert(users).values(data).returning();
+    return UserMapper.toProfile(row);
+  }
 
-  async updateSubscription(id: string, subscription: string): Promise<DbUser | null> {
-    const [row] = await db
+  async updateSubscription(id: string, subscription: string): Promise<UserProfile | null> {
+    const [row] = await this.db
       .update(users)
       .set({ subscription, updatedAt: new Date() })
       .where(eq(users.id, id))
       .returning();
-    return row ?? null;
-  },
+    return row ? UserMapper.toProfile(row) : null;
+  }
 
   async updateProfile(
     id: string,
-    data: Partial<Pick<DbUser, 'name' | 'phone' | 'avatar'>>,
-  ): Promise<DbUser | null> {
-    const [row] = await db
+    data: Partial<Pick<UserProfile, 'name' | 'phone' | 'avatar'>>,
+  ): Promise<UserProfile | null> {
+    const [row] = await this.db
       .update(users)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(users.id, id))
       .returning();
-    return row ?? null;
-  },
-};
+    return row ? UserMapper.toProfile(row) : null;
+  }
+}

@@ -1,18 +1,24 @@
-import { tokenStore } from '../../adapters/cache/token.store.js';
-import { getRemainingSeconds, verifyAccessToken } from './jwt.service.js';
+import type { IJwtService, ITokenStore } from '@domain/auth/ports.js';
 
-export async function logout(accessToken: string): Promise<void> {
-  let payload: { jti: string; sub: string };
-  try {
-    payload = verifyAccessToken(accessToken);
-  } catch {
-    return; // Token already expired
+export class LogoutUseCase {
+  constructor(
+    private readonly tokenStore: ITokenStore,
+    private readonly jwtService: IJwtService,
+  ) {}
+
+  async execute(accessToken: string): Promise<void> {
+    let payload: { jti: string; sub: string };
+    try {
+      payload = this.jwtService.verifyAccessToken(accessToken);
+    } catch {
+      return;
+    }
+
+    const remaining = this.jwtService.getRemainingSeconds(accessToken);
+    if (remaining > 0) {
+      await this.tokenStore.blacklistAccessToken(payload.jti, remaining);
+    }
+
+    await this.tokenStore.deleteRefreshToken(payload.sub);
   }
-
-  const remaining = getRemainingSeconds(accessToken);
-  if (remaining > 0) {
-    await tokenStore.blacklistAccessToken(payload.jti, remaining);
-  }
-
-  await tokenStore.deleteRefreshToken(payload.sub);
 }

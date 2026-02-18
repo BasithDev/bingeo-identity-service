@@ -1,23 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UserProfile } from '@domain/user/entities.js';
+import { JwtService } from '@usecases/auth/jwt.service.js';
+import { describe, expect, it } from 'vitest';
 
-vi.mock('../../config/env.js', () => ({
-  config: {
-    jwtSecret: 'test-secret-key-for-unit-tests',
-    jwtAccessExpiresIn: '15m',
-    jwtRefreshExpiresIn: '7d',
-  },
-}));
-
-import type { UserProfile } from '../../domain/user/entities.js';
-import {
-  generateTokenPair,
-  getRefreshTtlSeconds,
-  getRemainingSeconds,
-  signAccessToken,
-  signRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken,
-} from '../../usecases/auth/jwt.service.js';
+const jwtService = new JwtService('test-secret-key-for-unit-tests', '15m', '7d');
 
 const mockUser: UserProfile = {
   id: 'user-123',
@@ -31,17 +16,13 @@ const mockUser: UserProfile = {
   updatedAt: new Date(),
 };
 
-describe('jwt.service', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
+describe('JwtService', () => {
   describe('signAccessToken / verifyAccessToken', () => {
     it('should sign and verify an access token', () => {
-      const token = signAccessToken(mockUser);
+      const token = jwtService.signAccessToken(mockUser);
       expect(typeof token).toBe('string');
 
-      const payload = verifyAccessToken(token);
+      const payload = jwtService.verifyAccessToken(token);
       expect(payload.sub).toBe('user-123');
       expect(payload.email).toBe('test@example.com');
       expect(payload.name).toBe('Test User');
@@ -50,53 +31,53 @@ describe('jwt.service', () => {
     });
 
     it('should throw on invalid token', () => {
-      expect(() => verifyAccessToken('invalid-token')).toThrow();
+      expect(() => jwtService.verifyAccessToken('invalid-token')).toThrow();
     });
   });
 
   describe('signRefreshToken / verifyRefreshToken', () => {
     it('should sign and verify a refresh token', () => {
-      const token = signRefreshToken('user-123');
-      const payload = verifyRefreshToken(token);
+      const token = jwtService.signRefreshToken('user-123');
+      const payload = jwtService.verifyRefreshToken(token);
       expect(payload.sub).toBe('user-123');
       expect(payload.jti).toBeDefined();
     });
 
     it('should throw on invalid token', () => {
-      expect(() => verifyRefreshToken('bad-token')).toThrow();
+      expect(() => jwtService.verifyRefreshToken('bad-token')).toThrow();
     });
   });
 
   describe('generateTokenPair', () => {
     it('should return access and refresh tokens', () => {
-      const pair = generateTokenPair(mockUser);
+      const pair = jwtService.generateTokenPair(mockUser);
       expect(pair.accessToken).toBeDefined();
       expect(pair.refreshToken).toBeDefined();
 
-      const access = verifyAccessToken(pair.accessToken);
+      const access = jwtService.verifyAccessToken(pair.accessToken);
       expect(access.sub).toBe('user-123');
 
-      const refresh = verifyRefreshToken(pair.refreshToken);
+      const refresh = jwtService.verifyRefreshToken(pair.refreshToken);
       expect(refresh.sub).toBe('user-123');
     });
   });
 
   describe('getRefreshTtlSeconds', () => {
     it('should parse 7d correctly', () => {
-      expect(getRefreshTtlSeconds()).toBe(7 * 24 * 60 * 60);
+      expect(jwtService.getRefreshTtlSeconds()).toBe(7 * 24 * 60 * 60);
     });
   });
 
   describe('getRemainingSeconds', () => {
     it('should return remaining seconds for a valid token', () => {
-      const token = signAccessToken(mockUser);
-      const remaining = getRemainingSeconds(token);
+      const token = jwtService.signAccessToken(mockUser);
+      const remaining = jwtService.getRemainingSeconds(token);
       expect(remaining).toBeGreaterThan(0);
       expect(remaining).toBeLessThanOrEqual(15 * 60);
     });
 
     it('should return 0 for invalid token', () => {
-      expect(getRemainingSeconds('garbage')).toBe(0);
+      expect(jwtService.getRemainingSeconds('garbage')).toBe(0);
     });
   });
 });

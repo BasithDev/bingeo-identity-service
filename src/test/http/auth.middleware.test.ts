@@ -1,19 +1,37 @@
+import type { IJwtService, ITokenStore } from '@domain/auth/ports.js';
+import { createRequireAuth } from '@http/middleware/auth.middleware.js';
+import type { NextFunction, Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../adapters/cache/token.store.js', () => ({
-  tokenStore: {
-    isAccessTokenBlacklisted: vi.fn(),
-  },
-}));
+function createMocks() {
+  const jwtService: IJwtService = {
+    signAccessToken: vi.fn(),
+    signRefreshToken: vi.fn(),
+    verifyAccessToken: vi.fn().mockReturnValue({
+      sub: 'user-1',
+      jti: 'jti-1',
+      email: 'test@example.com',
+      name: 'Test',
+      role: 'user',
+      subscription: 'free',
+    }),
+    verifyRefreshToken: vi.fn(),
+    generateTokenPair: vi.fn(),
+    getRefreshTtlSeconds: vi.fn(),
+    getRemainingSeconds: vi.fn(),
+  };
 
-vi.mock('../../usecases/auth/jwt.service.js', () => ({
-  verifyAccessToken: vi.fn(),
-}));
+  const tokenStore: ITokenStore = {
+    storeRefreshToken: vi.fn(),
+    getRefreshToken: vi.fn(),
+    deleteRefreshToken: vi.fn(),
+    deleteAllRefreshTokens: vi.fn(),
+    blacklistAccessToken: vi.fn(),
+    isAccessTokenBlacklisted: vi.fn().mockResolvedValue(false),
+  };
 
-import type { NextFunction, Request, Response } from 'express';
-import { tokenStore } from '../../adapters/cache/token.store.js';
-import { requireAuth } from '../../http/auth.middleware.js';
-import { verifyAccessToken } from '../../usecases/auth/jwt.service.js';
+  return { jwtService, tokenStore };
+}
 
 function mockReq(cookies: Record<string, string> = {}): Request {
   return { cookies } as unknown as Request;
@@ -28,19 +46,14 @@ function mockRes(): Response {
 }
 
 describe('requireAuth middleware', () => {
+  let mocks: ReturnType<typeof createMocks>;
+  let requireAuth: (req: Request, res: Response, next: NextFunction) => Promise<void>;
   const next: NextFunction = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(verifyAccessToken).mockReturnValue({
-      sub: 'user-1',
-      jti: 'jti-1',
-      email: 'test@example.com',
-      name: 'Test',
-      role: 'user',
-      subscription: 'free',
-    });
-    vi.mocked(tokenStore.isAccessTokenBlacklisted).mockResolvedValue(false);
+    mocks = createMocks();
+    requireAuth = createRequireAuth(mocks.jwtService, mocks.tokenStore);
   });
 
   it('should call next and attach user on valid token', async () => {
@@ -65,7 +78,7 @@ describe('requireAuth middleware', () => {
   });
 
   it('should return 401 when token is blacklisted', async () => {
-    vi.mocked(tokenStore.isAccessTokenBlacklisted).mockResolvedValue(true);
+    vi.mocked(mocks.tokenStore.isAccessTokenBlacklisted).mockResolvedValue(true);
     const req = mockReq({ access_token: 'blacklisted' });
     const res = mockRes();
 
@@ -76,7 +89,7 @@ describe('requireAuth middleware', () => {
   });
 
   it('should return 401 when token is invalid', async () => {
-    vi.mocked(verifyAccessToken).mockImplementation(() => {
+    vi.mocked(mocks.jwtService.verifyAccessToken).mockImplementation(() => {
       throw new Error('invalid');
     });
     const req = mockReq({ access_token: 'bad-token' });

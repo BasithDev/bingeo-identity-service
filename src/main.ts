@@ -2,12 +2,12 @@ import 'dotenv/config';
 import './instrumentation.js';
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { connectRedis, disconnectRedis } from '@adapters/cache/redis.client.js';
+import { pool } from '@adapters/db/db.client.js';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import pinoHttp from 'pino-http';
-import { connectRedis, disconnectRedis } from './adapters/cache/redis.client.js';
-import { pool } from './adapters/db/db.client.js';
-import { authRouter } from './http/auth/routes.js';
+import { authRouter } from './container.js';
 import { logger } from './logger.js';
 
 const app = express();

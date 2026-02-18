@@ -8,7 +8,7 @@ vi.mock('../../config/env.js', () => ({
 }));
 
 import type { Response } from 'express';
-import { clearAuthCookies, setAuthCookies } from '../../http/cookie.helper.js';
+import { clearAuthCookies, setAuthCookies } from '../../http/helpers/cookie.helper.js';
 
 function mockRes(): Response & {
   cookie: ReturnType<typeof vi.fn>;

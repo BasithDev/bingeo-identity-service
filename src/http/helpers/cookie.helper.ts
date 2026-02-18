@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import { config } from '../config/env.js';
+import { config } from '../../config/env.js';
 
 const COOKIE_BASE_OPTIONS = {
   httpOnly: true,

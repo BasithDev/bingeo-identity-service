@@ -1,32 +1,55 @@
+import type { AuthCredential } from '@domain/auth/entities.js';
+import type { IAuthRepository } from '@domain/auth/ports.js';
 import { and, eq } from 'drizzle-orm';
-import { db } from './db.client.js';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type * as schema from './schema.js';
 import { auth } from './schema.js';
 
-export type NewAuth = typeof auth.$inferInsert;
-export type DbAuth = typeof auth.$inferSelect;
+type DbAuth = typeof auth.$inferSelect;
 
-export const authRepository = {
-  async findByEmail(email: string): Promise<DbAuth | null> {
-    const [row] = await db.select().from(auth).where(eq(auth.email, email)).limit(1);
-    return row ?? null;
-  },
+function toAuthCredential(row: DbAuth): AuthCredential {
+  return {
+    id: row.id,
+    userId: row.userId,
+    email: row.email,
+    passwordHash: row.passwordHash,
+    provider: row.provider as 'local' | 'google',
+    providerId: row.providerId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
-  async findByUserId(userId: string): Promise<DbAuth | null> {
-    const [row] = await db.select().from(auth).where(eq(auth.userId, userId)).limit(1);
-    return row ?? null;
-  },
+export class DrizzleAuthRepository implements IAuthRepository {
+  constructor(private readonly db: NodePgDatabase<typeof schema>) {}
 
-  async findByProvider(provider: string, providerId: string): Promise<DbAuth | null> {
-    const [row] = await db
+  async findByEmail(email: string): Promise<AuthCredential | null> {
+    const [row] = await this.db.select().from(auth).where(eq(auth.email, email)).limit(1);
+    return row ? toAuthCredential(row) : null;
+  }
+
+  async findByUserId(userId: string): Promise<AuthCredential | null> {
+    const [row] = await this.db.select().from(auth).where(eq(auth.userId, userId)).limit(1);
+    return row ? toAuthCredential(row) : null;
+  }
+
+  async findByProvider(provider: string, providerId: string): Promise<AuthCredential | null> {
+    const [row] = await this.db
       .select()
       .from(auth)
       .where(and(eq(auth.provider, provider), eq(auth.providerId, providerId)))
       .limit(1);
-    return row ?? null;
-  },
+    return row ? toAuthCredential(row) : null;
+  }
 
-  async create(data: NewAuth): Promise<DbAuth> {
-    const [row] = await db.insert(auth).values(data).returning();
-    return row;
-  },
-};
+  async create(data: {
+    userId: string;
+    email: string;
+    passwordHash?: string | null;
+    provider: string;
+    providerId?: string | null;
+  }): Promise<AuthCredential> {
+    const [row] = await this.db.insert(auth).values(data).returning();
+    return toAuthCredential(row);
+  }
+}

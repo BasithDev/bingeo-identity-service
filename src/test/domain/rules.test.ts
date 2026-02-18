@@ -1,6 +1,6 @@
+import { validateEmail, validatePassword } from '@domain/auth/rules.js';
+import { validateName } from '@domain/user/rules.js';
 import { describe, expect, it } from 'vitest';
-import { validateEmail, validatePassword } from '../../domain/auth/rules.js';
-import { validateName } from '../../domain/user/rules.js';
 
 describe('validateEmail', () => {
   it('should accept valid email', () => {

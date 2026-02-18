@@ -1,20 +1,24 @@
+import type { RequestHandler } from 'express';
 import { Router } from 'express';
-import { requireAuth } from '../auth.middleware.js';
-import * as handlers from './handlers.js';
+import type { AuthController } from './handlers.js';
 
-export const authRouter = Router();
+export function createAuthRouter(controller: AuthController, requireAuth: RequestHandler): Router {
+  const router = Router();
 
-authRouter.get('/health', handlers.healthCheck);
+  router.get('/health', controller.healthCheck);
 
-// Auth — public
-authRouter.post('/auth/register', handlers.registerHandler);
-authRouter.post('/auth/login', handlers.loginHandler);
-authRouter.post('/auth/refresh', handlers.refreshHandler);
+  // Auth — public
+  router.post('/auth/register', controller.register);
+  router.post('/auth/login', controller.login);
+  router.post('/auth/refresh', controller.refresh);
 
-// Auth — Google OAuth
-authRouter.get('/auth/google', handlers.googleRedirectHandler);
-authRouter.get('/auth/google/callback', handlers.googleCallbackHandler);
+  // Auth — Google OAuth
+  router.get('/auth/google', controller.googleRedirect);
+  router.get('/auth/google/callback', controller.googleCallback);
 
-// Auth — protected
-authRouter.post('/auth/logout', requireAuth, handlers.logoutHandler);
-authRouter.get('/auth/me', requireAuth, handlers.getMeHandler);
+  // Auth — protected
+  router.post('/auth/logout', requireAuth, controller.logout);
+  router.get('/auth/me', requireAuth, controller.getMe);
+
+  return router;
+}

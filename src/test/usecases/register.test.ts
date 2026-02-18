@@ -1,43 +1,15 @@
+import type {
+  IAuthRepository,
+  IJwtService,
+  IPasswordHasher,
+  ITokenStore,
+} from '@domain/auth/ports.js';
+import type { UserProfile } from '@domain/user/entities.js';
+import type { IUserRepository } from '@domain/user/ports.js';
+import { RegisterUseCase } from '@usecases/auth/register.usecase.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock all dependencies
-vi.mock('../../adapters/db/auth.repository.js', () => ({
-  authRepository: {
-    findByEmail: vi.fn(),
-    create: vi.fn(),
-  },
-}));
-
-vi.mock('../../adapters/db/user.repository.js', () => ({
-  userRepository: {
-    create: vi.fn(),
-  },
-}));
-
-vi.mock('../../adapters/cache/token.store.js', () => ({
-  tokenStore: {
-    storeRefreshToken: vi.fn(),
-  },
-}));
-
-vi.mock('argon2', () => ({
-  default: { hash: vi.fn().mockResolvedValue('hashed-password') },
-}));
-
-vi.mock('../../usecases/auth/jwt.service.js', () => ({
-  generateTokenPair: vi.fn().mockReturnValue({
-    accessToken: 'mock-access',
-    refreshToken: 'mock-refresh',
-  }),
-  getRefreshTtlSeconds: vi.fn().mockReturnValue(604800),
-}));
-
-import { tokenStore } from '../../adapters/cache/token.store.js';
-import { authRepository } from '../../adapters/db/auth.repository.js';
-import { userRepository } from '../../adapters/db/user.repository.js';
-import { register } from '../../usecases/auth/register.usecase.js';
-
-const mockDbUser = {
+const mockUser: UserProfile = {
   id: 'user-1',
   email: 'test@example.com',
   name: 'Test',
@@ -49,12 +21,14 @@ const mockDbUser = {
   updatedAt: new Date(),
 };
 
-describe('register', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(authRepository.findByEmail).mockResolvedValue(null);
-    vi.mocked(userRepository.create).mockResolvedValue(mockDbUser);
-    vi.mocked(authRepository.create).mockResolvedValue({
+const mockTokens = { accessToken: 'mock-access', refreshToken: 'mock-refresh' };
+
+function createMocks() {
+  const authRepo: IAuthRepository = {
+    findByEmail: vi.fn().mockResolvedValue(null),
+    findByUserId: vi.fn(),
+    findByProvider: vi.fn(),
+    create: vi.fn().mockResolvedValue({
       id: 'auth-1',
       userId: 'user-1',
       email: 'test@example.com',
@@ -63,11 +37,61 @@ describe('register', () => {
       providerId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    }),
+  };
+
+  const userRepo: IUserRepository = {
+    findById: vi.fn(),
+    findByEmail: vi.fn(),
+    create: vi.fn().mockResolvedValue(mockUser),
+    updateSubscription: vi.fn(),
+    updateProfile: vi.fn(),
+  };
+
+  const tokenStore: ITokenStore = {
+    storeRefreshToken: vi.fn(),
+    getRefreshToken: vi.fn(),
+    deleteRefreshToken: vi.fn(),
+    deleteAllRefreshTokens: vi.fn(),
+    blacklistAccessToken: vi.fn(),
+    isAccessTokenBlacklisted: vi.fn(),
+  };
+
+  const jwtService: IJwtService = {
+    signAccessToken: vi.fn(),
+    signRefreshToken: vi.fn(),
+    verifyAccessToken: vi.fn(),
+    verifyRefreshToken: vi.fn(),
+    generateTokenPair: vi.fn().mockReturnValue(mockTokens),
+    getRefreshTtlSeconds: vi.fn().mockReturnValue(604800),
+    getRemainingSeconds: vi.fn(),
+  };
+
+  const hasher: IPasswordHasher = {
+    hash: vi.fn().mockResolvedValue('hashed-password'),
+    verify: vi.fn(),
+  };
+
+  return { authRepo, userRepo, tokenStore, jwtService, hasher };
+}
+
+describe('RegisterUseCase', () => {
+  let mocks: ReturnType<typeof createMocks>;
+  let useCase: RegisterUseCase;
+
+  beforeEach(() => {
+    mocks = createMocks();
+    useCase = new RegisterUseCase(
+      mocks.authRepo,
+      mocks.userRepo,
+      mocks.tokenStore,
+      mocks.jwtService,
+      mocks.hasher,
+    );
   });
 
   it('should register a new user successfully', async () => {
-    const result = await register({
+    const result = await useCase.execute({
       email: 'test@example.com',
       password: 'Test1234',
       name: 'Test',
@@ -75,37 +99,43 @@ describe('register', () => {
 
     expect(result.user.email).toBe('test@example.com');
     expect(result.tokens.accessToken).toBe('mock-access');
-    expect(userRepository.create).toHaveBeenCalled();
-    expect(authRepository.create).toHaveBeenCalled();
-    expect(tokenStore.storeRefreshToken).toHaveBeenCalled();
+    expect(mocks.userRepo.create).toHaveBeenCalled();
+    expect(mocks.authRepo.create).toHaveBeenCalled();
+    expect(mocks.tokenStore.storeRefreshToken).toHaveBeenCalled();
   });
 
   it('should throw on invalid email', async () => {
-    await expect(register({ email: '', password: 'Test1234', name: 'Test' })).rejects.toThrow();
+    await expect(
+      useCase.execute({ email: '', password: 'Test1234', name: 'Test' }),
+    ).rejects.toThrow();
   });
 
   it('should throw on weak password', async () => {
-    await expect(register({ email: 'a@b.com', password: 'short', name: 'Test' })).rejects.toThrow();
+    await expect(
+      useCase.execute({ email: 'a@b.com', password: 'short', name: 'Test' }),
+    ).rejects.toThrow();
   });
 
   it('should throw on invalid name', async () => {
-    await expect(register({ email: 'a@b.com', password: 'Test1234', name: '' })).rejects.toThrow();
+    await expect(
+      useCase.execute({ email: 'a@b.com', password: 'Test1234', name: '' }),
+    ).rejects.toThrow();
   });
 
   it('should throw if email already exists', async () => {
-    vi.mocked(authRepository.findByEmail).mockResolvedValue({
+    vi.mocked(mocks.authRepo.findByEmail).mockResolvedValue({
       id: 'auth-1',
       userId: 'user-1',
       email: 'test@example.com',
       passwordHash: 'hashed',
-      provider: 'local',
+      provider: 'local' as const,
       providerId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     await expect(
-      register({ email: 'test@example.com', password: 'Test1234', name: 'Test' }),
+      useCase.execute({ email: 'test@example.com', password: 'Test1234', name: 'Test' }),
     ).rejects.toThrow('Email already registered');
   });
 });
