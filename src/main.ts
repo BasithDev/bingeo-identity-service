@@ -1,75 +1,51 @@
-// OpenTelemetry MUST be imported first
+import 'dotenv/config';
 import './instrumentation.js';
 
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { connectRedis, disconnectRedis } from '@adapters/cache/redis.client.js';
+import { pool } from '@adapters/db/db.client.js';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import pinoHttp from 'pino-http';
+import { authRouter } from './container.js';
 import { logger } from './logger.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
-// Request logging middleware - ignore health checks
-app.use(pinoHttp({ 
-  logger,
-  autoLogging: {
-    ignore: (req) => req.url === '/health',
-  },
-  customLogLevel: (_req, res) => {
-    if (res.statusCode >= 500) return 'error';
-    if (res.statusCode >= 400) return 'warn';
-    return 'info';
-  },
-  // Minimal serializers for cleaner output
-  serializers: {
-    req: (req) => ({
-      method: req.method,
-      url: req.url,
-    }),
-    res: (res) => ({
-      status: res.statusCode,
-    }),
-  },
-}));
+// ── Middleware ───────────────────────────────────────────
 
-// JSON parsing
-app.use(express.json());
-
-// Health check (no logging)
-app.get('/health', (_req, res) => {
-  res.json({ status: 'healthy', service: 'identity-service' });
-});
-
-// Hello endpoint - for testing the full flow
-app.get('/api/identity/hello', (req, res) => {
-  logger.info('Hello endpoint called');
-  
-  res.json({
-    message: 'Hello from Bingeo Identity Service! 🚀',
-    timestamp: new Date().toISOString(),
-    service: 'bingeo-identity-service',
-  });
-});
-
-// Test endpoint
-app.get('/api/identity/test', (req, res) => {
-  logger.info({ action: 'test' }, 'Processing test request');
-  
-  res.json({
-    success: true,
-    data: {
-      timestamp: Date.now(),
-      random: Math.random(),
+// Request logging - ignore health checks
+app.use(
+  pinoHttp.default({
+    logger,
+    autoLogging: {
+      ignore: (req: IncomingMessage) => req.url === '/health',
     },
-  });
-});
+    customLogLevel: (_req: IncomingMessage, res: ServerResponse) => {
+      if (res.statusCode >= 500) return 'error';
+      if (res.statusCode >= 400) return 'warn';
+      return 'info';
+    },
+    serializers: {
+      req: (req: Record<string, unknown>) => ({
+        method: req.method,
+        url: req.url,
+      }),
+      res: (res: Record<string, unknown>) => ({
+        status: res.statusCode,
+      }),
+    },
+  }),
+);
 
-// Status endpoint
-app.get('/api/identity/status', (_req, res) => {
-  res.json({
-    service: 'identity-service',
-    uptime: process.uptime(),
-  });
-});
+// Body parsing & cookies
+app.use(express.json());
+app.use(cookieParser());
+
+// ── Routes ──────────────────────────────────────────────
+
+app.use(authRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -77,7 +53,47 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  logger.info(`🚀 Identity Service started on port ${PORT}`);
-});
+// ── Server Startup ──────────────────────────────────────
+
+async function start(): Promise<void> {
+  try {
+    // Connect to Redis
+    await connectRedis();
+    logger.info('Redis connected');
+
+    // PostgreSQL pool connects lazily on first query —
+    // but we verify connectivity here
+    const client = await pool.connect();
+    client.release();
+    logger.info('PostgreSQL connected');
+
+    // Start HTTP server
+    app.listen(PORT, () => {
+      logger.info(`🚀 Identity Service started on port ${PORT}`);
+    });
+  } catch (error) {
+    logger.fatal({ err: error }, 'Failed to start Identity Service');
+    process.exit(1);
+  }
+}
+
+// ── Graceful Shutdown ───────────────────────────────────
+
+async function shutdown(signal: string): Promise<void> {
+  logger.info({ signal }, 'Shutting down gracefully...');
+
+  try {
+    await disconnectRedis();
+    await pool.end();
+    logger.info('All connections closed');
+  } catch (error) {
+    logger.error({ err: error }, 'Error during shutdown');
+  }
+
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+start();
