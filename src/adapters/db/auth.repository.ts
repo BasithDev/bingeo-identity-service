@@ -52,4 +52,11 @@ export class DrizzleAuthRepository implements IAuthRepository {
     const [row] = await this.db.insert(auth).values(data).returning();
     return toAuthCredential(row);
   }
+
+  async updatePasswordHash(userId: string, newHash: string): Promise<void> {
+    await this.db
+      .update(auth)
+      .set({ passwordHash: newHash, updatedAt: new Date() })
+      .where(eq(auth.userId, userId));
+  }
 }

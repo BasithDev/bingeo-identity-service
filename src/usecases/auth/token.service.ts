@@ -1,10 +1,10 @@
 import crypto from 'node:crypto';
 import type { AuthTokens, JwtAccessPayload, JwtRefreshPayload } from '@domain/auth/dtos.js';
-import type { IJwtService } from '@domain/auth/ports.js';
+import type { ITokenService } from '@domain/auth/ports.js';
 import type { UserProfile } from '@domain/user/entities.js';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 
-export class JwtService implements IJwtService {
+export class TokenService implements ITokenService {
   constructor(
     private readonly secret: string,
     private readonly accessExpiresIn: string,

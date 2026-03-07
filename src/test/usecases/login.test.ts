@@ -1,9 +1,4 @@
-import type {
-  IAuthRepository,
-  IJwtService,
-  IPasswordHasher,
-  ITokenStore,
-} from '@domain/auth/ports.js';
+import type { IAuthRepository, IPasswordHasher, ITokenService } from '@domain/auth/ports.js';
 import type { UserProfile } from '@domain/user/entities.js';
 import type { IUserRepository } from '@domain/user/ports.js';
 import { LoginUseCase } from '@usecases/auth/login.usecase.js';
@@ -15,6 +10,7 @@ const mockUser: UserProfile = {
   name: 'Test',
   role: 'user',
   subscription: 'free',
+  emailVerified: true,
   phone: null,
   avatar: null,
   createdAt: new Date(),
@@ -40,6 +36,7 @@ function createMocks() {
     findByUserId: vi.fn(),
     findByProvider: vi.fn(),
     create: vi.fn(),
+    updatePasswordHash: vi.fn(),
   };
 
   const userRepo: IUserRepository = {
@@ -48,18 +45,10 @@ function createMocks() {
     create: vi.fn(),
     updateSubscription: vi.fn(),
     updateProfile: vi.fn(),
+    verifyEmail: vi.fn(),
   };
 
-  const tokenStore: ITokenStore = {
-    storeRefreshToken: vi.fn(),
-    getRefreshToken: vi.fn(),
-    deleteRefreshToken: vi.fn(),
-    deleteAllRefreshTokens: vi.fn(),
-    blacklistAccessToken: vi.fn(),
-    isAccessTokenBlacklisted: vi.fn(),
-  };
-
-  const jwtService: IJwtService = {
+  const tokenService: ITokenService = {
     signAccessToken: vi.fn(),
     signRefreshToken: vi.fn(),
     verifyAccessToken: vi.fn(),
@@ -74,7 +63,7 @@ function createMocks() {
     verify: vi.fn().mockResolvedValue(true),
   };
 
-  return { authRepo, userRepo, tokenStore, jwtService, hasher };
+  return { authRepo, userRepo, tokenService, hasher };
 }
 
 describe('LoginUseCase', () => {
@@ -83,13 +72,7 @@ describe('LoginUseCase', () => {
 
   beforeEach(() => {
     mocks = createMocks();
-    useCase = new LoginUseCase(
-      mocks.authRepo,
-      mocks.userRepo,
-      mocks.tokenStore,
-      mocks.jwtService,
-      mocks.hasher,
-    );
+    useCase = new LoginUseCase(mocks.authRepo, mocks.userRepo, mocks.tokenService, mocks.hasher);
   });
 
   it('should login successfully', async () => {

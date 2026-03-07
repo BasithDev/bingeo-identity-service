@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 // Auth credentials — login-related data only
 export const auth = pgTable(
@@ -29,6 +29,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).unique().notNull(),
   role: varchar('role', { length: 20 }).notNull().default('user'),
   subscription: varchar('subscription', { length: 20 }).notNull().default('free'),
+  emailVerified: boolean('email_verified').notNull().default(false),
   phone: varchar('phone', { length: 20 }),
   avatar: text('avatar'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

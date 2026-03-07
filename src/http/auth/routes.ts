@@ -12,7 +12,13 @@ export function createAuthRouter(controller: AuthController, requireAuth: Reques
   router.post('/auth/login', controller.login);
   router.post('/auth/refresh', controller.refresh);
 
-  // Auth — Google OAuth
+  // OTP — public
+  router.post('/auth/verify-otp', controller.verifyOtp);
+  router.post('/auth/resend-otp', controller.resendOtp);
+
+  // Password reset — public
+  router.post('/auth/forgot-password', controller.forgotPassword);
+  router.post('/auth/reset-password', controller.resetPassword);
   router.get('/auth/google', controller.googleRedirect);
   router.get('/auth/google/callback', controller.googleCallback);
 

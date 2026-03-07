@@ -4,6 +4,7 @@ import type { AuthTokens, JwtAccessPayload, JwtRefreshPayload } from './dtos.js'
 import type { AuthCredential } from './entities.js';
 
 export interface IAuthRepository {
+  updatePasswordHash(userId: string, newHash: string): Promise<void>;
   findByEmail(email: string): Promise<AuthCredential | null>;
   findByUserId(userId: string): Promise<AuthCredential | null>;
   findByProvider(provider: string, providerId: string): Promise<AuthCredential | null>;
@@ -17,15 +18,15 @@ export interface IAuthRepository {
 }
 
 export interface ITokenStore {
-  storeRefreshToken(userId: string, token: string, ttlSeconds: number): Promise<void>;
-  getRefreshToken(userId: string): Promise<string | null>;
-  deleteRefreshToken(userId: string): Promise<void>;
-  deleteAllRefreshTokens(userId: string): Promise<void>;
+  // Refresh token blacklist (by jti)
+  blacklistRefreshToken(jti: string, ttlSeconds: number): Promise<void>;
+  isRefreshTokenBlacklisted(jti: string): Promise<boolean>;
+  // Access token blacklist (by jti) — used on logout to immediately invalidate
   blacklistAccessToken(jti: string, ttlSeconds: number): Promise<void>;
   isAccessTokenBlacklisted(jti: string): Promise<boolean>;
 }
 
-export interface IJwtService {
+export interface ITokenService {
   signAccessToken(user: UserProfile): string;
   signRefreshToken(userId: string): string;
   verifyAccessToken(token: string): JwtAccessPayload;
@@ -43,4 +44,20 @@ export interface IGoogleOAuthClient {
 export interface IPasswordHasher {
   hash(password: string): Promise<string>;
   verify(hash: string, password: string): Promise<boolean>;
+}
+
+export interface IOtpStore {
+  /** Store a hashed OTP with TTL */
+  storeOtp(userId: string, hashedOtp: string, ttlSeconds: number): Promise<void>;
+  /** Get the stored hashed OTP */
+  getOtp(userId: string): Promise<string | null>;
+  /** Delete OTP after successful verification */
+  deleteOtp(userId: string): Promise<void>;
+  /** Increment and return the verification attempt count */
+  incrementAttempts(userId: string, ttlSeconds: number): Promise<number>;
+}
+
+export interface IMailer {
+  sendOtp(to: string, otp: string, name: string): Promise<void>;
+  sendPasswordReset(to: string, otp: string, name: string): Promise<void>;
 }

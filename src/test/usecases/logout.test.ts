@@ -1,35 +1,33 @@
-import type { IJwtService, ITokenStore } from '@domain/auth/ports.js';
+import type { ITokenService, ITokenStore } from '@domain/auth/ports.js';
 import { LogoutUseCase } from '@usecases/auth/logout.usecase.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createMocks() {
   const tokenStore: ITokenStore = {
-    storeRefreshToken: vi.fn(),
-    getRefreshToken: vi.fn(),
-    deleteRefreshToken: vi.fn(),
-    deleteAllRefreshTokens: vi.fn(),
+    blacklistRefreshToken: vi.fn(),
+    isRefreshTokenBlacklisted: vi.fn().mockResolvedValue(false),
     blacklistAccessToken: vi.fn(),
-    isAccessTokenBlacklisted: vi.fn(),
+    isAccessTokenBlacklisted: vi.fn().mockResolvedValue(false),
   };
 
-  const jwtService: IJwtService = {
+  const tokenService: ITokenService = {
     signAccessToken: vi.fn(),
     signRefreshToken: vi.fn(),
     verifyAccessToken: vi.fn().mockReturnValue({
       sub: 'user-1',
-      jti: 'jti-123',
+      jti: 'access-jti',
       email: 'test@example.com',
       name: 'Test',
       role: 'user',
       subscription: 'free',
     }),
-    verifyRefreshToken: vi.fn(),
+    verifyRefreshToken: vi.fn().mockReturnValue({ sub: 'user-1', jti: 'refresh-jti' }),
     generateTokenPair: vi.fn(),
     getRefreshTtlSeconds: vi.fn(),
     getRemainingSeconds: vi.fn().mockReturnValue(600),
   };
 
-  return { tokenStore, jwtService };
+  return { tokenStore, tokenService };
 }
 
 describe('LogoutUseCase', () => {
@@ -38,26 +36,32 @@ describe('LogoutUseCase', () => {
 
   beforeEach(() => {
     mocks = createMocks();
-    useCase = new LogoutUseCase(mocks.tokenStore, mocks.jwtService);
+    useCase = new LogoutUseCase(mocks.tokenStore, mocks.tokenService);
   });
 
-  it('should blacklist access token and delete refresh token', async () => {
-    await useCase.execute('valid-access-token');
-    expect(mocks.tokenStore.blacklistAccessToken).toHaveBeenCalledWith('jti-123', 600);
-    expect(mocks.tokenStore.deleteRefreshToken).toHaveBeenCalledWith('user-1');
+  it('should blacklist both access and refresh tokens on logout', async () => {
+    await useCase.execute('valid-access-token', 'valid-refresh-token');
+    expect(mocks.tokenStore.blacklistAccessToken).toHaveBeenCalledWith('access-jti', 600);
+    expect(mocks.tokenStore.blacklistRefreshToken).toHaveBeenCalledWith('refresh-jti', 600);
   });
 
-  it('should skip blacklisting if remaining is 0', async () => {
-    vi.mocked(mocks.jwtService.getRemainingSeconds).mockReturnValue(0);
-    await useCase.execute('valid-access-token');
+  it('should skip blacklisting access token if remaining is 0', async () => {
+    vi.mocked(mocks.tokenService.getRemainingSeconds).mockReturnValue(0);
+    await useCase.execute('valid-access-token', 'valid-refresh-token');
     expect(mocks.tokenStore.blacklistAccessToken).not.toHaveBeenCalled();
-    expect(mocks.tokenStore.deleteRefreshToken).toHaveBeenCalled();
+    expect(mocks.tokenStore.blacklistRefreshToken).not.toHaveBeenCalled();
   });
 
-  it('should gracefully handle expired token', async () => {
-    vi.mocked(mocks.jwtService.verifyAccessToken).mockImplementation(() => {
+  it('should gracefully handle expired access token', async () => {
+    vi.mocked(mocks.tokenService.verifyAccessToken).mockImplementation(() => {
       throw new Error('expired');
     });
     await expect(useCase.execute('expired-token')).resolves.toBeUndefined();
+  });
+
+  it('should still work if no refresh token provided', async () => {
+    await useCase.execute('valid-access-token');
+    expect(mocks.tokenStore.blacklistAccessToken).toHaveBeenCalled();
+    expect(mocks.tokenStore.blacklistRefreshToken).not.toHaveBeenCalled();
   });
 });

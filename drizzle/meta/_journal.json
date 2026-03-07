@@ -8,6 +8,13 @@
       "when": 1771244337783,
       "tag": "0000_freezing_nightcrawler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772857797366,
+      "tag": "0001_add-email-verified",
+      "breakpoints": true
     }
   ]
 }
