@@ -1,8 +1,3 @@
-/**
- * Environment Configuration
- * Centralized environment variable access
- */
-
 function getEnv(key: string, defaultValue?: string): string {
   const value = process.env[key] ?? defaultValue;
   if (value === undefined) {
@@ -26,44 +21,42 @@ function getEnvNumber(key: string, defaultValue?: number): number {
   return parsed;
 }
 
+function parseJwtTimeToMs(timeStr: string): number {
+  const match = /^(\d+)([smhd])$/.exec(timeStr);
+  if (!match) return 0;
+  const val = parseInt(match[1], 10);
+  const unit = match[2];
+  if (unit === 's') return val * 1000;
+  if (unit === 'm') return val * 60 * 1000;
+  if (unit === 'h') return val * 60 * 60 * 1000;
+  if (unit === 'd') return val * 24 * 60 * 60 * 1000;
+  return 0;
+}
+
 export const config = {
-  // App
   nodeEnv: getEnv('NODE_ENV', 'development'),
   port: getEnvNumber('PORT', 3000),
   isProduction: getEnv('NODE_ENV', 'development') === 'production',
   isDevelopment: getEnv('NODE_ENV', 'development') === 'development',
-
-  // TLS: Set ALLOW_INSECURE_TLS=true in .env for dev (e.g. Aiven self-signed certs).
-  // Must NEVER be true in production — disables certificate verification.
   allowInsecureTls: getEnv('ALLOW_INSECURE_TLS', 'false') === 'true',
-
-  // JWT (HS256)
   jwtSecret: getEnv('JWT_SECRET', 'dev-secret-change-in-production'),
   jwtAccessExpiresIn: getEnv('JWT_ACCESS_EXPIRES_IN', '15m'),
   jwtRefreshExpiresIn: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
-
-  // Database (PostgreSQL)
+  get jwtAccessTtlMs() {
+    return parseJwtTimeToMs(this.jwtAccessExpiresIn);
+  },
+  get jwtRefreshTtlMs() {
+    return parseJwtTimeToMs(this.jwtRefreshExpiresIn);
+  },
   databaseUrl: getEnv('DATABASE_URL', 'postgresql://user:password@localhost:5432/bingeo_identity'),
-
-  // Redis
   redisUrl: getEnv('REDIS_URL', 'redis://localhost:6379'),
-
-  // Google OAuth
   googleClientId: getEnv('GOOGLE_CLIENT_ID', ''),
   googleClientSecret: getEnv('GOOGLE_CLIENT_SECRET', ''),
   googleCallbackUrl: getEnv('GOOGLE_CALLBACK_URL', 'http://localhost:3000/auth/google/callback'),
-
-  // Cookie
   cookieDomain: getEnv('COOKIE_DOMAIN', 'localhost'),
-
-  // Client URL (for OAuth redirects)
   clientUrl: getEnv('CLIENT_URL', 'http://localhost:5173'),
-
-  // Resend (email)
   resendApiKey: getEnv('RESEND_API_KEY', ''),
   resendFromAddress: getEnv('RESEND_FROM_ADDRESS', 'Bingeo <onboarding@resend.dev>'),
-
-  // OTP
-  otpTtlSeconds: getEnvNumber('OTP_TTL_SECONDS', 300), // 5 minutes
+  otpTtlSeconds: getEnvNumber('OTP_TTL_SECONDS', 300),
   otpMaxAttempts: getEnvNumber('OTP_MAX_ATTEMPTS', 5),
 } as const;

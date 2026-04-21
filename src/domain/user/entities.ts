@@ -1,10 +1,8 @@
-export interface BaseEntity {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { IBaseEntity } from '@domain/shared/entities';
 
-export interface UserProfile extends BaseEntity {
+export type { IBaseEntity } from '@domain/shared/entities';
+
+export interface IUserProfile extends IBaseEntity {
   name: string;
   email: string;
   role: 'user' | 'admin';
@@ -12,4 +10,5 @@ export interface UserProfile extends BaseEntity {
   emailVerified: boolean;
   phone: string | null;
   avatar: string | null;
+  isBlocked: boolean;
 }

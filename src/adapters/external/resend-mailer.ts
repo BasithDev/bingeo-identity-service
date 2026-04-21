@@ -1,14 +1,24 @@
-import type { IMailer } from '@domain/auth/ports.js';
+import type { IMailer } from '@domain/auth/ports';
 import { Resend } from 'resend';
-import { logger } from '../../logger.js';
+import { logger } from '../../shared/logger';
+
+function formatTtl(seconds: number): string {
+  if (seconds >= 60) {
+    const minutes = Math.round(seconds / 60);
+    return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  }
+  return `${seconds} second${seconds === 1 ? '' : 's'}`;
+}
 
 export class ResendMailer implements IMailer {
   private readonly resend: Resend;
   private readonly fromAddress: string;
+  private readonly ttlDisplay: string;
 
-  constructor(apiKey: string, fromAddress: string) {
+  constructor(apiKey: string, fromAddress: string, otpTtlSeconds: number) {
     this.resend = new Resend(apiKey);
     this.fromAddress = fromAddress;
+    this.ttlDisplay = formatTtl(otpTtlSeconds);
   }
 
   async sendOtp(to: string, otp: string, name: string): Promise<void> {
@@ -65,7 +75,7 @@ export class ResendMailer implements IMailer {
         </div>
 
         <p style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">
-          This code expires in <strong style="color: #f5f5f5;">10 minutes</strong>.
+          This code expires in <strong style="color: #f5f5f5;">${this.ttlDisplay}</strong>.
         </p>
         <p style="font-size: 13px; color: #6b7280;">
           If you didn't request this, you can safely ignore this email.
@@ -73,7 +83,7 @@ export class ResendMailer implements IMailer {
 
         <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 32px 0 16px;" />
         <p style="font-size: 11px; color: #4b5563; text-align: center;">
-          © ${new Date().getFullYear()} Bingeo Entertainment Pvt. Ltd.
+          &copy; ${new Date().getFullYear()} Bingeo Entertainment Pvt. Ltd.
         </p>
       </div>
     `;
