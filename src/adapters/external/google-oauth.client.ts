@@ -1,19 +1,20 @@
-import type { IGoogleOAuthClient } from '@domain/auth/ports.js';
-import type { GoogleUserInfo } from '@domain/user/dtos.js';
-import { logger } from '../../logger.js';
+import type { IGoogleUserInfo } from '@domain/auth/types';
+import type { IGoogleOAuthClient } from '@domain/auth/ports';
+import { DomainError } from '@domain/shared/errors';
+import { logger } from '../../shared/logger';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
-interface GoogleOAuthConfig {
+interface IGoogleOAuthConfig {
   googleClientId: string;
   googleClientSecret: string;
   googleCallbackUrl: string;
 }
 
 export class GoogleOAuthClient implements IGoogleOAuthClient {
-  constructor(private readonly config: GoogleOAuthConfig) {}
+  constructor(private readonly config: IGoogleOAuthConfig) {}
 
   getAuthUrl(): string {
     const params = new URLSearchParams({
@@ -28,7 +29,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
     return `${GOOGLE_AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeCode(code: string): Promise<GoogleUserInfo> {
+  async exchangeCode(code: string): Promise<IGoogleUserInfo> {
     const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -47,7 +48,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
         { status: tokenResponse.status, body: errorBody },
         'Google token exchange failed',
       );
-      throw new Error('Failed to exchange Google authorization code');
+      throw new DomainError('Failed to exchange Google authorization code', 'GOOGLE_AUTH_FAILED');
     }
 
     const tokenData = (await tokenResponse.json()) as { access_token: string };
@@ -57,7 +58,7 @@ export class GoogleOAuthClient implements IGoogleOAuthClient {
     });
 
     if (!userInfoResponse.ok) {
-      throw new Error('Failed to fetch Google user info');
+      throw new DomainError('Failed to fetch Google user info', 'GOOGLE_AUTH_FAILED');
     }
 
     const userInfo = (await userInfoResponse.json()) as {

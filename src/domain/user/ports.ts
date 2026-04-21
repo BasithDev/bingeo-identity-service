@@ -1,18 +1,34 @@
-import type { UserProfile } from './entities.js';
+import type { IUserProfile } from './entities';
+
+export interface IFindUsersQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  plan?: string;
+  sortBy?: 'joinedAt' | 'age' | 'totalPaid' | 'totalWatchHours' | 'name';
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface IUserListResult {
+  data: IUserProfile[];
+  total: number;
+}
 
 export interface IUserRepository {
-  findById(id: string): Promise<UserProfile | null>;
-  findByEmail(email: string): Promise<UserProfile | null>;
+  findById(id: string): Promise<IUserProfile | null>;
+  findByEmail(email: string): Promise<IUserProfile | null>;
   create(data: {
     email: string;
     name: string;
-    role: string;
-    subscription: string;
-  }): Promise<UserProfile>;
-  updateSubscription(id: string, subscription: string): Promise<UserProfile | null>;
+    role: 'user' | 'admin';
+    subscription: 'free' | 'premium';
+  }): Promise<IUserProfile>;
+  updateSubscription(id: string, subscription: 'free' | 'premium'): Promise<IUserProfile | null>;
   updateProfile(
     id: string,
-    data: Partial<Pick<UserProfile, 'name' | 'phone' | 'avatar'>>,
-  ): Promise<UserProfile | null>;
-  verifyEmail(userId: string): Promise<UserProfile | null>;
+    data: Partial<Pick<IUserProfile, 'name' | 'phone' | 'avatar'>>,
+  ): Promise<IUserProfile | null>;
+  verifyEmail(userId: string): Promise<IUserProfile | null>;
+  updateBlockedStatus(userId: string, isBlocked: boolean): Promise<void>;
+  findUsers(query: IFindUsersQuery): Promise<IUserListResult>;
 }

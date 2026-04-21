@@ -1,7 +1,7 @@
 # Build stage
 FROM node:20-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ RUN pnpm build
 # Production stage
 FROM node:20-alpine AS runner
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 
 WORKDIR /app
 
@@ -27,6 +27,6 @@ COPY --from=builder /app/dist ./dist
 
 USER node
 
-EXPOSE 3000
+EXPOSE 3001
 
 CMD ["node", "dist/main.js"]
