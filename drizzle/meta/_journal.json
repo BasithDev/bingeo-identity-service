@@ -15,6 +15,13 @@
       "when": 1772857797366,
       "tag": "0001_add-email-verified",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773148959992,
+      "tag": "0002_nifty_swarm",
+      "breakpoints": true
     }
   ]
 }

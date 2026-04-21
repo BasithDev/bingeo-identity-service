@@ -1,4 +1,4 @@
-import { err, ok } from '@domain/shared/types.js';
+import { err, ok } from '@domain/shared/types';
 import { describe, expect, it } from 'vitest';
 
 describe('Result type', () => {

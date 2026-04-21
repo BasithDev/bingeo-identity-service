@@ -2,14 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm via corepack (consistent with other services)
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install dependencies
+# Install dependencies + approve native build scripts (argon2, esbuild, protobufjs)
 RUN pnpm install
+RUN pnpm approve-builds && pnpm install
 
 # Copy source
 COPY . .
@@ -19,3 +20,4 @@ EXPOSE 3001
 
 # Development with hot reload
 CMD ["pnpm", "dev"]
+

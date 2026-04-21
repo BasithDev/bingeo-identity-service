@@ -1,6 +1,6 @@
-import type { BaseEntity } from '../user/entities.js';
+import type { IBaseEntity } from '@domain/user/entities';
 
-export interface AuthCredential extends BaseEntity {
+export interface IAuthCredential extends IBaseEntity {
   userId: string;
   email: string;
   passwordHash: string | null;

@@ -1,32 +1,30 @@
 import 'dotenv/config';
-import './instrumentation.js';
+import './shared/instrumentation';
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { connectRedis, disconnectRedis } from '@adapters/cache/redis.client.js';
-import { pool } from '@adapters/db/db.client.js';
+import { connectRedis, disconnectRedis } from '@adapters/cache/redis.client';
+import { pool } from '@adapters/db/client/db.client';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import pinoHttp from 'pino-http';
-import { authRouter } from './container.js';
-import { logger } from './logger.js';
+import { apiRouter } from './bootstrap';
+import { globalErrorHandler } from './interfaces/http/middleware/error.middleware';
+import { logger } from './shared/logger';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+app.set('trust proxy', 1);
+const PORT = process.env.PORT || 3001;
 
-// ── Middleware ───────────────────────────────────────────
-
-// CORS — only needed for local dev (in production, Envoy Gateway handles CORS)
 app.use(
   cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    credentials: true, // required for httpOnly cookies
+    credentials: true,
   }),
 );
 
-// Request logging - ignore health checks
 app.use(
-  pinoHttp.default({
+  pinoHttp({
     logger,
     autoLogging: {
       ignore: (req: IncomingMessage) => req.url === '/health',
@@ -48,35 +46,31 @@ app.use(
   }),
 );
 
-// Body parsing & cookies
 app.use(express.json());
 app.use(cookieParser());
 
-// ── Routes ──────────────────────────────────────────────
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', service: 'identity-service' });
+});
 
-app.use('/api', authRouter);
+app.use('/api', apiRouter);
 
-// 404 handler
 app.use((req, res) => {
   logger.warn({ method: req.method, path: req.path }, 'Route not found');
   res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
 });
 
-// ── Server Startup ──────────────────────────────────────
+app.use(globalErrorHandler);
 
 async function start(): Promise<void> {
   try {
-    // Connect to Redis
     await connectRedis();
     logger.info('Redis connected');
 
-    // PostgreSQL pool connects lazily on first query —
-    // but we verify connectivity here
     const client = await pool.connect();
     client.release();
     logger.info('PostgreSQL connected');
 
-    // Start HTTP server
     app.listen(PORT, () => {
       logger.info(`🚀 Identity Service started on port ${PORT}`);
     });
@@ -85,8 +79,6 @@ async function start(): Promise<void> {
     process.exit(1);
   }
 }
-
-// ── Graceful Shutdown ───────────────────────────────────
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'Shutting down gracefully...');
@@ -98,7 +90,6 @@ async function shutdown(signal: string): Promise<void> {
   } catch (error) {
     logger.error({ err: error }, 'Error during shutdown');
   }
-
   process.exit(0);
 }
 
