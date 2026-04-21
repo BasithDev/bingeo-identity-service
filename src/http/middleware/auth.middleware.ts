@@ -1,5 +1,5 @@
 import type { JwtAccessPayload } from '@domain/auth/dtos.js';
-import type { IJwtService, ITokenStore } from '@domain/auth/ports.js';
+import type { ITokenService, ITokenStore } from '@domain/auth/ports.js';
 import type { NextFunction, Request, Response } from 'express';
 import { HttpStatus } from '../constants/http-status.enum.js';
 
@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-export function createRequireAuth(jwtService: IJwtService, tokenStore: ITokenStore) {
+export function createRequireAuth(tokenService: ITokenService, tokenStore: ITokenStore) {
   return async function requireAuth(
     req: Request,
     res: Response,
@@ -27,7 +27,7 @@ export function createRequireAuth(jwtService: IJwtService, tokenStore: ITokenSto
     }
 
     try {
-      const payload = jwtService.verifyAccessToken(token);
+      const payload = tokenService.verifyAccessToken(token);
 
       const isBlacklisted = await tokenStore.isAccessTokenBlacklisted(payload.jti);
       if (isBlacklisted) {

@@ -7,6 +7,7 @@ export class UserMapper {
     email: string;
     role: string;
     subscription: string;
+    emailVerified: boolean;
     phone: string | null;
     avatar: string | null;
     createdAt: Date;
@@ -18,6 +19,7 @@ export class UserMapper {
       email: dbRow.email,
       role: dbRow.role as 'user' | 'admin',
       subscription: dbRow.subscription as 'free' | 'premium',
+      emailVerified: dbRow.emailVerified,
       phone: dbRow.phone,
       avatar: dbRow.avatar,
       createdAt: dbRow.createdAt,

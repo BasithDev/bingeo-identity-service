@@ -38,7 +38,18 @@ describe('cookie.helper', () => {
       expect(res.cookie).toHaveBeenCalledWith(
         'refresh_token',
         'refresh-tok',
-        expect.objectContaining({ httpOnly: true, path: '/auth/refresh' }),
+        expect.objectContaining({ httpOnly: true, path: '/' }),
+      );
+    });
+
+    it('should clear the stale path=/api refresh_token cookie', () => {
+      const res = mockRes();
+      setAuthCookies(res, 'access-tok', 'refresh-tok');
+
+      // Must evict the old cookie that used to live at path=/api
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'refresh_token',
+        expect.objectContaining({ path: '/api' }),
       );
     });
   });
@@ -48,11 +59,21 @@ describe('cookie.helper', () => {
       const res = mockRes();
       clearAuthCookies(res);
 
-      expect(res.clearCookie).toHaveBeenCalledTimes(2);
+      // At least access_token and refresh_token at path='/'
       expect(res.clearCookie).toHaveBeenCalledWith('access_token', expect.any(Object));
       expect(res.clearCookie).toHaveBeenCalledWith(
         'refresh_token',
-        expect.objectContaining({ path: '/auth/refresh' }),
+        expect.objectContaining({ path: '/' }),
+      );
+    });
+
+    it('should also clear the stale path=/api refresh_token cookie', () => {
+      const res = mockRes();
+      clearAuthCookies(res);
+
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        'refresh_token',
+        expect.objectContaining({ path: '/api' }),
       );
     });
   });

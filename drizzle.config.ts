@@ -7,6 +7,7 @@ export default defineConfig({
   dialect: 'postgresql',
   dbCredentials: {
     url: process.env.DATABASE_URL ?? '',
-    ssl: { rejectUnauthorized: false },
+    // TLS: only skip cert verification when ALLOW_INSECURE_TLS=true (dev with Aiven self-signed certs)
+    ssl: { rejectUnauthorized: process.env.ALLOW_INSECURE_TLS !== 'true' },
   },
 });

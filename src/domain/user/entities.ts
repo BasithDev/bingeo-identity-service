@@ -9,6 +9,7 @@ export interface UserProfile extends BaseEntity {
   email: string;
   role: 'user' | 'admin';
   subscription: 'free' | 'premium';
+  emailVerified: boolean;
   phone: string | null;
   avatar: string | null;
 }

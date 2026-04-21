@@ -2,11 +2,15 @@ import type { IGoogleOAuthClient } from '@domain/auth/ports.js';
 import { DomainError } from '@domain/shared/errors.js';
 import type { UserProfile } from '@domain/user/entities.js';
 import type { IUserRepository } from '@domain/user/ports.js';
+import type { ForgotPasswordUseCase } from '@usecases/auth/forgot-password.usecase.js';
 import type { GoogleAuthUseCase } from '@usecases/auth/google-auth.usecase.js';
 import type { LoginUseCase } from '@usecases/auth/login.usecase.js';
 import type { LogoutUseCase } from '@usecases/auth/logout.usecase.js';
 import type { RefreshUseCase } from '@usecases/auth/refresh.usecase.js';
 import type { RegisterUseCase } from '@usecases/auth/register.usecase.js';
+import type { ResendOtpUseCase } from '@usecases/auth/resend-otp.usecase.js';
+import type { ResetPasswordUseCase } from '@usecases/auth/reset-password.usecase.js';
+import type { VerifyOtpUseCase } from '@usecases/auth/verify-otp.usecase.js';
 import type { Request, Response } from 'express';
 import { logger } from '../../logger.js';
 import { HttpStatus } from '../constants/http-status.enum.js';
@@ -29,6 +33,10 @@ export class AuthController {
     private readonly logoutUC: LogoutUseCase,
     private readonly refreshUC: RefreshUseCase,
     private readonly googleAuthUC: GoogleAuthUseCase,
+    private readonly verifyOtpUC: VerifyOtpUseCase,
+    private readonly resendOtpUC: ResendOtpUseCase,
+    private readonly forgotPasswordUC: ForgotPasswordUseCase,
+    private readonly resetPasswordUC: ResetPasswordUseCase,
     private readonly googleOAuth: IGoogleOAuthClient,
     private readonly userRepo: IUserRepository,
     private readonly clientUrl: string,
@@ -50,9 +58,75 @@ export class AuthController {
       }
 
       const result = await this.registerUC.execute({ email, password, name });
+      res.status(HttpStatus.CREATED).json(result);
+    } catch (error) {
+      handleAuthError(res, error);
+    }
+  };
+
+  verifyOtp = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId, otp } = req.body;
+
+      if (!userId || !otp) {
+        res.status(HttpStatus.BAD_REQUEST).json({ error: 'userId and otp are required' });
+        return;
+      }
+
+      const result = await this.verifyOtpUC.execute({ userId, otp });
       setAuthCookies(res, result.tokens.accessToken, result.tokens.refreshToken);
 
-      res.status(HttpStatus.CREATED).json({ user: toUserResponse(result.user) });
+      res.json({ user: toUserResponse(result.user) });
+    } catch (error) {
+      handleAuthError(res, error);
+    }
+  };
+
+  resendOtp = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        res.status(HttpStatus.BAD_REQUEST).json({ error: 'userId is required' });
+        return;
+      }
+
+      const result = await this.resendOtpUC.execute({ userId });
+      res.json(result);
+    } catch (error) {
+      handleAuthError(res, error);
+    }
+  };
+
+  forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        res.status(HttpStatus.BAD_REQUEST).json({ error: 'Email is required' });
+        return;
+      }
+
+      const result = await this.forgotPasswordUC.execute({ email });
+      res.json(result);
+    } catch (error) {
+      handleAuthError(res, error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { userId, otp, newPassword } = req.body;
+
+      if (!userId || !otp || !newPassword) {
+        res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ error: 'userId, otp, and newPassword are required' });
+        return;
+      }
+
+      const result = await this.resetPasswordUC.execute({ userId, otp, newPassword });
+      res.json(result);
     } catch (error) {
       handleAuthError(res, error);
     }
@@ -100,6 +174,7 @@ export class AuthController {
   refresh = async (req: Request, res: Response): Promise<void> => {
     try {
       const refreshToken = req.cookies?.refresh_token;
+
       if (!refreshToken) {
         res
           .status(HttpStatus.UNAUTHORIZED)
@@ -119,7 +194,8 @@ export class AuthController {
   logout = async (req: Request, res: Response): Promise<void> => {
     try {
       const accessToken = req.cookies?.access_token;
-      if (accessToken) await this.logoutUC.execute(accessToken);
+      const refreshToken = req.cookies?.refresh_token;
+      if (accessToken) await this.logoutUC.execute(accessToken, refreshToken);
       clearAuthCookies(res);
       res.json({ message: 'Logged out successfully' });
     } catch (error) {
@@ -166,10 +242,15 @@ function handleAuthError(res: Response, error: unknown): void {
       INVALID_REFRESH_TOKEN: HttpStatus.UNAUTHORIZED,
       REFRESH_TOKEN_REVOKED: HttpStatus.UNAUTHORIZED,
       USER_NOT_FOUND: HttpStatus.NOT_FOUND,
+      EMAIL_NOT_VERIFIED: HttpStatus.FORBIDDEN,
+      OTP_INVALID: HttpStatus.BAD_REQUEST,
+      OTP_EXPIRED: HttpStatus.BAD_REQUEST,
+      OTP_MAX_ATTEMPTS: HttpStatus.RATE_LIMIT,
+      ALREADY_VERIFIED: HttpStatus.CONFLICT,
     };
     res
       .status(statusMap[error.code] ?? HttpStatus.BAD_REQUEST)
-      .json({ error: error.message, code: error.code });
+      .json({ error: error.message, code: error.code, ...(error.meta || {}) });
     return;
   }
 

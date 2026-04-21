@@ -1,10 +1,5 @@
 import type { AuthTokens } from '@domain/auth/dtos.js';
-import type {
-  IAuthRepository,
-  IGoogleOAuthClient,
-  IJwtService,
-  ITokenStore,
-} from '@domain/auth/ports.js';
+import type { IAuthRepository, IGoogleOAuthClient, ITokenService } from '@domain/auth/ports.js';
 import type { UserProfile } from '@domain/user/entities.js';
 import type { IUserRepository } from '@domain/user/ports.js';
 
@@ -18,8 +13,7 @@ export class GoogleAuthUseCase {
   constructor(
     private readonly authRepo: IAuthRepository,
     private readonly userRepo: IUserRepository,
-    private readonly tokenStore: ITokenStore,
-    private readonly jwtService: IJwtService,
+    private readonly tokenService: ITokenService,
     private readonly googleOAuth: IGoogleOAuthClient,
   ) {}
 
@@ -52,6 +46,10 @@ export class GoogleAuthUseCase {
           subscription: 'free',
         });
 
+        // Google OAuth users are auto-verified
+        await this.userRepo.verifyEmail(user.id);
+        user = (await this.userRepo.findById(user.id)) ?? user;
+
         await this.authRepo.create({
           userId: user.id,
           email: googleUser.email,
@@ -65,12 +63,7 @@ export class GoogleAuthUseCase {
 
     if (!user) throw new Error('Failed to resolve user profile');
 
-    const tokens = this.jwtService.generateTokenPair(user);
-    await this.tokenStore.storeRefreshToken(
-      user.id,
-      tokens.refreshToken,
-      this.jwtService.getRefreshTtlSeconds(),
-    );
+    const tokens = this.tokenService.generateTokenPair(user);
 
     return { user, tokens, isNewUser };
   }

@@ -33,6 +33,10 @@ export const config = {
   isProduction: getEnv('NODE_ENV', 'development') === 'production',
   isDevelopment: getEnv('NODE_ENV', 'development') === 'development',
 
+  // TLS: Set ALLOW_INSECURE_TLS=true in .env for dev (e.g. Aiven self-signed certs).
+  // Must NEVER be true in production — disables certificate verification.
+  allowInsecureTls: getEnv('ALLOW_INSECURE_TLS', 'false') === 'true',
+
   // JWT (HS256)
   jwtSecret: getEnv('JWT_SECRET', 'dev-secret-change-in-production'),
   jwtAccessExpiresIn: getEnv('JWT_ACCESS_EXPIRES_IN', '15m'),
@@ -54,4 +58,12 @@ export const config = {
 
   // Client URL (for OAuth redirects)
   clientUrl: getEnv('CLIENT_URL', 'http://localhost:5173'),
+
+  // Resend (email)
+  resendApiKey: getEnv('RESEND_API_KEY', ''),
+  resendFromAddress: getEnv('RESEND_FROM_ADDRESS', 'Bingeo <onboarding@resend.dev>'),
+
+  // OTP
+  otpTtlSeconds: getEnvNumber('OTP_TTL_SECONDS', 300), // 5 minutes
+  otpMaxAttempts: getEnvNumber('OTP_MAX_ATTEMPTS', 5),
 } as const;

@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { connectRedis, disconnectRedis } from '@adapters/cache/redis.client.js';
 import { pool } from '@adapters/db/db.client.js';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import express from 'express';
 import pinoHttp from 'pino-http';
 import { authRouter } from './container.js';
@@ -14,6 +15,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ── Middleware ───────────────────────────────────────────
+
+// CORS — only needed for local dev (in production, Envoy Gateway handles CORS)
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true, // required for httpOnly cookies
+  }),
+);
 
 // Request logging - ignore health checks
 app.use(
@@ -45,12 +54,12 @@ app.use(cookieParser());
 
 // ── Routes ──────────────────────────────────────────────
 
-app.use(authRouter);
+app.use('/api', authRouter);
 
 // 404 handler
 app.use((req, res) => {
-  logger.warn({ path: req.path }, 'Route not found');
-  res.status(404).json({ error: 'Not found' });
+  logger.warn({ method: req.method, path: req.path }, 'Route not found');
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
 });
 
 // ── Server Startup ──────────────────────────────────────

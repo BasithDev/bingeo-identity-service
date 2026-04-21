@@ -14,4 +14,5 @@ export interface IUserRepository {
     id: string,
     data: Partial<Pick<UserProfile, 'name' | 'phone' | 'avatar'>>,
   ): Promise<UserProfile | null>;
+  verifyEmail(userId: string): Promise<UserProfile | null>;
 }

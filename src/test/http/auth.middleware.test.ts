@@ -1,10 +1,10 @@
-import type { IJwtService, ITokenStore } from '@domain/auth/ports.js';
+import type { ITokenService, ITokenStore } from '@domain/auth/ports.js';
 import { createRequireAuth } from '@http/middleware/auth.middleware.js';
 import type { NextFunction, Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createMocks() {
-  const jwtService: IJwtService = {
+  const tokenService: ITokenService = {
     signAccessToken: vi.fn(),
     signRefreshToken: vi.fn(),
     verifyAccessToken: vi.fn().mockReturnValue({
@@ -22,15 +22,13 @@ function createMocks() {
   };
 
   const tokenStore: ITokenStore = {
-    storeRefreshToken: vi.fn(),
-    getRefreshToken: vi.fn(),
-    deleteRefreshToken: vi.fn(),
-    deleteAllRefreshTokens: vi.fn(),
+    blacklistRefreshToken: vi.fn(),
+    isRefreshTokenBlacklisted: vi.fn().mockResolvedValue(false),
     blacklistAccessToken: vi.fn(),
     isAccessTokenBlacklisted: vi.fn().mockResolvedValue(false),
   };
 
-  return { jwtService, tokenStore };
+  return { tokenService, tokenStore };
 }
 
 function mockReq(cookies: Record<string, string> = {}): Request {
@@ -53,7 +51,7 @@ describe('requireAuth middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks = createMocks();
-    requireAuth = createRequireAuth(mocks.jwtService, mocks.tokenStore);
+    requireAuth = createRequireAuth(mocks.tokenService, mocks.tokenStore);
   });
 
   it('should call next and attach user on valid token', async () => {
@@ -89,7 +87,7 @@ describe('requireAuth middleware', () => {
   });
 
   it('should return 401 when token is invalid', async () => {
-    vi.mocked(mocks.jwtService.verifyAccessToken).mockImplementation(() => {
+    vi.mocked(mocks.tokenService.verifyAccessToken).mockImplementation(() => {
       throw new Error('invalid');
     });
     const req = mockReq({ access_token: 'bad-token' });

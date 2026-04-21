@@ -8,7 +8,7 @@ const connectionUrl = config.databaseUrl.replace(/[?&]sslmode=[^&]*/g, '');
 
 const pool = new pg.Pool({
   connectionString: connectionUrl,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: !config.allowInsecureTls },
 });
 
 pool.on('error', (error) => {

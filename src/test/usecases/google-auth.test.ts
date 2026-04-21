@@ -1,9 +1,4 @@
-import type {
-  IAuthRepository,
-  IGoogleOAuthClient,
-  IJwtService,
-  ITokenStore,
-} from '@domain/auth/ports.js';
+import type { IAuthRepository, IGoogleOAuthClient, ITokenService } from '@domain/auth/ports.js';
 import type { UserProfile } from '@domain/user/entities.js';
 import type { IUserRepository } from '@domain/user/ports.js';
 import { GoogleAuthUseCase } from '@usecases/auth/google-auth.usecase.js';
@@ -15,6 +10,7 @@ const mockUser: UserProfile = {
   name: 'Google User',
   role: 'user',
   subscription: 'free',
+  emailVerified: true,
   phone: null,
   avatar: null,
   createdAt: new Date(),
@@ -28,6 +24,7 @@ function createMocks() {
     findByEmail: vi.fn(),
     findByUserId: vi.fn(),
     findByProvider: vi.fn().mockResolvedValue(null),
+    updatePasswordHash: vi.fn(),
     create: vi.fn().mockResolvedValue({
       id: 'auth-new',
       userId: 'user-1',
@@ -46,18 +43,10 @@ function createMocks() {
     create: vi.fn().mockResolvedValue(mockUser),
     updateSubscription: vi.fn(),
     updateProfile: vi.fn(),
+    verifyEmail: vi.fn().mockResolvedValue(mockUser),
   };
 
-  const tokenStore: ITokenStore = {
-    storeRefreshToken: vi.fn(),
-    getRefreshToken: vi.fn(),
-    deleteRefreshToken: vi.fn(),
-    deleteAllRefreshTokens: vi.fn(),
-    blacklistAccessToken: vi.fn(),
-    isAccessTokenBlacklisted: vi.fn(),
-  };
-
-  const jwtService: IJwtService = {
+  const tokenService: ITokenService = {
     signAccessToken: vi.fn(),
     signRefreshToken: vi.fn(),
     verifyAccessToken: vi.fn(),
@@ -76,7 +65,7 @@ function createMocks() {
     }),
   };
 
-  return { authRepo, userRepo, tokenStore, jwtService, googleOAuth };
+  return { authRepo, userRepo, tokenService, googleOAuth };
 }
 
 describe('GoogleAuthUseCase', () => {
@@ -88,8 +77,7 @@ describe('GoogleAuthUseCase', () => {
     useCase = new GoogleAuthUseCase(
       mocks.authRepo,
       mocks.userRepo,
-      mocks.tokenStore,
-      mocks.jwtService,
+      mocks.tokenService,
       mocks.googleOAuth,
     );
   });

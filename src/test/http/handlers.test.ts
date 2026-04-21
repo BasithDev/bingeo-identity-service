@@ -3,11 +3,15 @@ import { DomainError } from '@domain/shared/errors.js';
 import type { UserProfile } from '@domain/user/entities.js';
 import type { IUserRepository } from '@domain/user/ports.js';
 import { AuthController } from '@http/auth/handlers.js';
+import type { ForgotPasswordUseCase } from '@usecases/auth/forgot-password.usecase.js';
 import type { GoogleAuthUseCase } from '@usecases/auth/google-auth.usecase.js';
 import type { LoginUseCase } from '@usecases/auth/login.usecase.js';
 import type { LogoutUseCase } from '@usecases/auth/logout.usecase.js';
 import type { RefreshUseCase } from '@usecases/auth/refresh.usecase.js';
 import type { RegisterUseCase } from '@usecases/auth/register.usecase.js';
+import type { ResendOtpUseCase } from '@usecases/auth/resend-otp.usecase.js';
+import type { ResetPasswordUseCase } from '@usecases/auth/reset-password.usecase.js';
+import type { VerifyOtpUseCase } from '@usecases/auth/verify-otp.usecase.js';
 import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,6 +26,7 @@ const mockUser: UserProfile = {
   name: 'Test',
   role: 'user',
   subscription: 'free',
+  emailVerified: true,
   phone: null,
   avatar: null,
   createdAt: new Date(),
@@ -53,7 +58,7 @@ function mockRes(): Response {
 
 function createController() {
   const registerUC = {
-    execute: vi.fn().mockResolvedValue({ user: mockUser, tokens: mockTokens }),
+    execute: vi.fn().mockResolvedValue({ userId: 'user-1', message: 'Verification code sent' }),
   } as unknown as RegisterUseCase;
   const loginUC = {
     execute: vi.fn().mockResolvedValue({ user: mockUser, tokens: mockTokens }),
@@ -65,6 +70,21 @@ function createController() {
   const googleAuthUC = {
     execute: vi.fn().mockResolvedValue({ user: mockUser, tokens: mockTokens, isNewUser: false }),
   } as unknown as GoogleAuthUseCase;
+  const verifyOtpUC = {
+    execute: vi.fn().mockResolvedValue({ user: mockUser, tokens: mockTokens }),
+  } as unknown as VerifyOtpUseCase;
+  const resendOtpUC = {
+    execute: vi.fn().mockResolvedValue({ message: 'New verification code sent' }),
+  } as unknown as ResendOtpUseCase;
+  const forgotPasswordUC = {
+    execute: vi.fn().mockResolvedValue({
+      userId: 'user-1',
+      message: 'If this email is registered, a reset code has been sent.',
+    }),
+  } as unknown as ForgotPasswordUseCase;
+  const resetPasswordUC = {
+    execute: vi.fn().mockResolvedValue({ message: 'Password reset successfully.' }),
+  } as unknown as ResetPasswordUseCase;
 
   const googleOAuth: IGoogleOAuthClient = {
     getAuthUrl: vi.fn().mockReturnValue('https://accounts.google.com/o/oauth2/auth?test'),
@@ -77,6 +97,7 @@ function createController() {
     create: vi.fn(),
     updateSubscription: vi.fn(),
     updateProfile: vi.fn(),
+    verifyEmail: vi.fn(),
   };
 
   const controller = new AuthController(
@@ -85,6 +106,10 @@ function createController() {
     logoutUC,
     refreshUC,
     googleAuthUC,
+    verifyOtpUC,
+    resendOtpUC,
+    forgotPasswordUC,
+    resetPasswordUC,
     googleOAuth,
     userRepo,
     'http://localhost:3000',
@@ -97,6 +122,10 @@ function createController() {
     logoutUC,
     refreshUC,
     googleAuthUC,
+    verifyOtpUC,
+    resendOtpUC,
+    forgotPasswordUC,
+    resetPasswordUC,
     googleOAuth,
     userRepo,
   };
@@ -118,12 +147,14 @@ describe('AuthController', () => {
   });
 
   describe('register', () => {
-    it('should register and set cookies', async () => {
+    it('should register and return userId + message', async () => {
       const req = mockReq({ body: { email: 'a@b.com', password: 'Test1234', name: 'Test' } });
       const res = mockRes();
       await ctx.controller.register(req, res);
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ user: expect.any(Object) }));
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', message: expect.any(String) }),
+      );
     });
 
     it('should return 400 if body is incomplete', async () => {
@@ -140,6 +171,38 @@ describe('AuthController', () => {
       const res = mockRes();
       await ctx.controller.register(req, res);
       expect(res.status).toHaveBeenCalledWith(409);
+    });
+  });
+
+  describe('verifyOtp', () => {
+    it('should verify OTP and set cookies', async () => {
+      const req = mockReq({ body: { userId: 'user-1', otp: '123456' } });
+      const res = mockRes();
+      await ctx.controller.verifyOtp(req, res);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ user: expect.any(Object) }));
+    });
+
+    it('should return 400 if body is incomplete', async () => {
+      const res = mockRes();
+      await ctx.controller.verifyOtp(mockReq({ body: {} }), res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+
+  describe('resendOtp', () => {
+    it('should resend OTP', async () => {
+      const req = mockReq({ body: { userId: 'user-1' } });
+      const res = mockRes();
+      await ctx.controller.resendOtp(req, res);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
+    });
+
+    it('should return 400 without userId', async () => {
+      const res = mockRes();
+      await ctx.controller.resendOtp(mockReq({ body: {} }), res);
+      expect(res.status).toHaveBeenCalledWith(400);
     });
   });
 

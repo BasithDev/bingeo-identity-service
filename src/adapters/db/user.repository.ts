@@ -49,4 +49,13 @@ export class DrizzleUserRepository implements IUserRepository {
       .returning();
     return row ? UserMapper.toProfile(row) : null;
   }
+
+  async verifyEmail(userId: string): Promise<UserProfile | null> {
+    const [row] = await this.db
+      .update(users)
+      .set({ emailVerified: true, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return row ? UserMapper.toProfile(row) : null;
+  }
 }
