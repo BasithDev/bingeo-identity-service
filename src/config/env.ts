@@ -52,7 +52,7 @@ export const config = {
   redisUrl: getEnv('REDIS_URL', 'redis://localhost:6379'),
   googleClientId: getEnv('GOOGLE_CLIENT_ID', ''),
   googleClientSecret: getEnv('GOOGLE_CLIENT_SECRET', ''),
-  googleCallbackUrl: getEnv('GOOGLE_CALLBACK_URL', 'http://localhost:3000/auth/google/callback'),
+  googleCallbackUrl: getEnv('GOOGLE_CALLBACK_URL', 'http://localhost:5000/api/identity/auth/google/callback'),
   cookieDomain: getEnv('COOKIE_DOMAIN', 'localhost'),
   clientUrl: getEnv('CLIENT_URL', 'http://localhost:5173'),
   resendApiKey: getEnv('RESEND_API_KEY', ''),
