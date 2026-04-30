@@ -72,7 +72,7 @@ async function start(): Promise<void> {
     logger.info('PostgreSQL connected');
 
     app.listen(PORT, () => {
-      logger.info(`🚀 Identity Service started on port ${PORT}`);
+      logger.info(`Identity Service started on port ${PORT}`);
     });
   } catch (error) {
     logger.fatal({ err: error }, 'Failed to start Identity Service');

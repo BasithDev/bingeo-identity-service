@@ -7,6 +7,7 @@ import { db } from '@adapters/db/client/db.client';
 import { pool } from '@adapters/db/client/db.client';
 import { DrizzleAuthRepository } from '@adapters/db/repositories/auth.repository';
 import { DrizzleUserRepository } from '@adapters/db/repositories/user.repository';
+import { DrizzleUnitOfWork } from '@adapters/db/drizzle-unit-of-work';
 import { GoogleOAuthClient } from '@adapters/external/google-oauth.client';
 import { ResendMailer } from '@adapters/external/resend-mailer';
 import { InfraHealthChecker } from '@adapters/infra/health-checker';
@@ -43,6 +44,7 @@ container.register({
 
   authRepo: asValue(new DrizzleAuthRepository(db)),
   userRepo: asValue(new DrizzleUserRepository(db)),
+  uow: asValue(new DrizzleUnitOfWork(db)),
   tokenStore: asValue(tokenCache),
   userBlockStore: asValue(tokenCache),
   otpStore: asValue(new RedisOtpCache(redisClient as RedisClientType)),
